@@ -6,6 +6,7 @@ import PageMeta from "@/components/site/PageMeta";
 import { Button } from "@/components/ui/button";
 import { getPostBySlug, sanitizeWordPressHtml, type WordPressPost } from "@/lib/wordpress";
 import AdSlot from "@/components/site/AdSlot";
+import SocialShare from "@/components/site/SocialShare";
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -93,6 +94,7 @@ export default function Post() {
           )}
           <h1 className="mt-5 text-5xl leading-tight md:text-7xl">{post.title}</h1>
           {post.excerpt && <p className="mt-6 text-xl leading-relaxed text-muted-foreground">{post.excerpt}</p>}
+          <SocialShare title={post.title} className="mt-7 border-t border-border pt-5" />
         </header>
 
         {post.featuredImage && (
@@ -105,6 +107,9 @@ export default function Post() {
           className="prose prose-lg mx-auto max-w-3xl px-6 prose-headings:font-display prose-a:text-primary prose-img:rounded-xl"
           dangerouslySetInnerHTML={{ __html: sanitizeWordPressHtml(post.content) }}
         />
+        <div className="mx-auto mt-10 max-w-3xl border-t border-border px-6 pt-6">
+          <SocialShare title={post.title} />
+        </div>
         <AdSlot placement="content" />
       </article>
     </SiteLayout>

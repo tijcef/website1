@@ -20,10 +20,19 @@ describe("TIJCEF indexing and advertising safeguards", () => {
     expect(postbuild).toContain("404.html");
   });
 
-  it("returns a real static 404 for unknown paths instead of a catch-all soft 404", () => {
+  it("keeps unknown paths as real 404s while allowing dynamic content to recover", () => {
     const redirects = read("../../public/_redirects");
+    expect(redirects).toContain("/post/*                   /index.html                  200");
+    expect(redirects).toContain("/category/*               /index.html                  200");
+    expect(redirects).toContain("/grants/opportunities/*   /index.html                  200");
     expect(redirects).toContain("/*                        /404.html                    404");
-    expect(redirects).not.toMatch(/\/index\.html\s+200/);
+  });
+
+  it("does not silently deploy an incomplete dynamic sitemap", () => {
+    const postbuild = read("../../scripts/postbuild.mjs");
+    expect(postbuild).toContain("fetchJsonWithRetry");
+    expect(postbuild).toContain("Dynamic SEO generation failed");
+    expect(postbuild).toContain("/verify");
   });
 
   it("renders ads only when a valid publisher and slot are configured", () => {

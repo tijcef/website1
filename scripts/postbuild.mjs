@@ -23,6 +23,7 @@ const fixedRoutes = [
   ["/resources/menstrual-health-taraba-adamawa", "Menstrual Health in Taraba and Adamawa | TIJCEF", "TIJCEF's contextual overview of menstrual health barriers, knowledge gaps and WASH challenges."],
   ["/resources/faces-of-empowerment-2025", "Faces of Empowerment 2025 | TIJCEF", "Portraits and stories from TIJCEF's community empowerment work in 2025."],
   ["/contact", "Contact TIJCEF | TIJCEF", "Contact TIJCEF about programmes, partnerships, volunteering, donations or media enquiries."],
+  ["/verify", "Verify a TIJCEF Document | TIJCEF", "Verify the authenticity and status of a TIJCEF certificate, letter, staff ID or other official document."],
   ["/grants", "TIJCEF Grant Hub", "A transparent opportunity discovery and readiness platform for Nigerian nonprofits, researchers and community organisations."],
   ["/grants/opportunities", "Funding Opportunities | TIJCEF Grant Hub", "Browse reviewed grants, scholarships, fellowships, jobs and internships from the TIJCEF Grant Hub."],
   ["/grants/grants", "Grants | TIJCEF Grant Hub", "Browse reviewed grant opportunities relevant to Nigerian nonprofits, researchers and community organisations."],
@@ -140,20 +141,40 @@ for (const [route, title, description] of noIndexRoutes) {
   await writeRoute({ route, title, description, noIndex: true });
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchJsonWithRetry(url, label, attempts = 4) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: "application/json", "User-Agent": "TIJCEF-SEO-Builder/1.0" },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) throw new Error(`${response.status} ${label}`);
+      return { response, data: await response.json() };
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await sleep(1000 * attempt);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`Unable to fetch ${label}`);
+}
+
 async function fetchCollection(endpoint) {
   const firstUrl = new URL(`${WP_URL}${endpoint}`);
   firstUrl.searchParams.set("per_page", "100");
   firstUrl.searchParams.set("page", "1");
-  const firstResponse = await fetch(firstUrl, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30000) });
-  if (!firstResponse.ok) throw new Error(`${firstResponse.status} ${endpoint}`);
-  const items = await firstResponse.json();
-  const totalPages = Math.min(Number(firstResponse.headers.get("x-wp-totalpages") || 1), 50);
+  const first = await fetchJsonWithRetry(firstUrl, endpoint);
+  const items = first.data;
+  if (!Array.isArray(items)) throw new Error(`Unexpected response for ${endpoint}`);
+  const totalPages = Math.min(Number(first.response.headers.get("x-wp-totalpages") || 1), 50);
   for (let page = 2; page <= totalPages; page += 1) {
     const url = new URL(firstUrl);
     url.searchParams.set("page", String(page));
-    const response = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30000) });
-    if (!response.ok) throw new Error(`${response.status} ${endpoint} page ${page}`);
-    items.push(...await response.json());
+    const result = await fetchJsonWithRetry(url, `${endpoint} page ${page}`);
+    if (!Array.isArray(result.data)) throw new Error(`Unexpected response for ${endpoint} page ${page}`);
+    items.push(...result.data);
   }
   return items;
 }
@@ -195,7 +216,11 @@ try {
     sitemap.set(route, grant.modified || grant.date || "");
   }
 } catch (error) {
-  console.warn(`Dynamic SEO snapshots skipped: ${error instanceof Error ? error.message : error}`);
+  // Never publish a production build with a silently incomplete sitemap.
+  // If WordPress is temporarily unavailable, the deployment should fail and
+  // the previous healthy deployment should remain live instead of dropping
+  // article/category URLs from Google discovery.
+  throw new Error(`Dynamic SEO generation failed: ${error instanceof Error ? error.message : error}`);
 }
 
 const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${Array.from(sitemap.entries()).map(([route, lastmod]) => `  <url><loc>${SITE_URL}${route === "/" ? "/" : route}</loc>${lastmod ? `<lastmod>${String(lastmod).slice(0, 10)}</lastmod>` : ""}</url>`).join("\n")}\n</urlset>\n`;

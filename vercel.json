@@ -18,6 +18,7 @@
     { "source": "/resources/menstrual-health-taraba-adamawa", "destination": "/resources/menstrual-health-taraba-adamawa/index.html" },
     { "source": "/resources/faces-of-empowerment-2025", "destination": "/resources/faces-of-empowerment-2025/index.html" },
     { "source": "/contact", "destination": "/contact/index.html" },
+    { "source": "/verify", "destination": "/verify/index.html" },
     { "source": "/grants", "destination": "/grants/index.html" },
     { "source": "/grants/opportunities", "destination": "/grants/opportunities/index.html" },
     { "source": "/grants/grants", "destination": "/grants/grants/index.html" },

@@ -10,6 +10,14 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
+# Dynamic content normally has a pre-rendered directory generated at build time.
+# If a newly published item is requested before that snapshot exists, serve the
+# React shell with HTTP 200 so the page can load from WordPress instead of being
+# incorrectly reported as a 404. The next deploy creates its SEO snapshot.
+RewriteRule ^post/[a-z0-9-]+/?$ /index.html [L,NC]
+RewriteRule ^category/[a-z0-9-]+/?$ /index.html [L,NC]
+RewriteRule ^grants/opportunities/[a-z0-9-]+/?$ /index.html [L,NC]
+
 ErrorDocument 404 /404.html
 
 <IfModule mod_headers.c>
